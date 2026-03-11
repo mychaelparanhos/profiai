@@ -3,14 +3,11 @@
 -- Arquivo: supabase/migrations/20260311000000_initial_schema.sql
 -- ============================================
 
--- Habilitar extensão UUID
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- ========================
 -- USERS
 -- ========================
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   google_id TEXT UNIQUE NOT NULL,
@@ -25,7 +22,7 @@ CREATE POLICY "users_own_data" ON users
 -- SUBSCRIPTIONS
 -- ========================
 CREATE TABLE IF NOT EXISTS subscriptions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan TEXT NOT NULL DEFAULT 'trial' CHECK (plan IN ('trial', 'starter', 'pro', 'heavy', 'power')),
   credits_total INT NOT NULL DEFAULT 3,
@@ -45,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
 -- CLASSROOMS
 -- ========================
 CREATE TABLE IF NOT EXISTS classrooms (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   google_classroom_id TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -62,7 +59,7 @@ CREATE POLICY "classrooms_own_data" ON classrooms
 -- LESSONS
 -- ========================
 CREATE TABLE IF NOT EXISTS lessons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -88,7 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_lessons_user_date ON lessons(user_id, recorded_at
 -- LESSON OUTPUTS
 -- ========================
 CREATE TABLE IF NOT EXISTS lesson_outputs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE UNIQUE,
   transcription TEXT,
   summary TEXT,
@@ -113,7 +110,7 @@ CREATE POLICY "lesson_outputs_via_lesson" ON lesson_outputs
 -- TEACHING PLANS
 -- ========================
 CREATE TABLE IF NOT EXISTS teaching_plans (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
   content TEXT NOT NULL,

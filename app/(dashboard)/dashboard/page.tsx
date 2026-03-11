@@ -57,10 +57,16 @@ export default async function DashboardPage() {
               <p className="text-xs text-gray-500 mt-1">Turmas</p>
             </Link>
           </div>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-3 justify-center">
+            <Link
+              href="/aula/nova"
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              + Nova Aula
+            </Link>
             <Link
               href="/turmas"
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
               Gerenciar Turmas
             </Link>

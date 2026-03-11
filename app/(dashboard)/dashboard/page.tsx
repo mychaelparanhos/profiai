@@ -1,5 +1,6 @@
 import { auth, signOut } from '@/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -51,10 +52,18 @@ export default async function DashboardPage() {
               <p className="text-2xl font-bold text-green-600">0</p>
               <p className="text-xs text-gray-500 mt-1">Aulas</p>
             </div>
-            <div className="bg-orange-50 rounded-xl p-4 text-center">
+            <Link href="/turmas" className="bg-orange-50 rounded-xl p-4 text-center hover:bg-orange-100 transition-colors">
               <p className="text-2xl font-bold text-orange-600">0</p>
               <p className="text-xs text-gray-500 mt-1">Turmas</p>
-            </div>
+            </Link>
+          </div>
+          <div className="mt-6">
+            <Link
+              href="/turmas"
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Gerenciar Turmas
+            </Link>
           </div>
         </div>
       </main>

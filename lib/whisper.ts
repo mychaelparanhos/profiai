@@ -1,11 +1,10 @@
 import OpenAI from 'openai';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function transcribeAudio(
   audioBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
   // Slice to get a plain ArrayBuffer (avoids SharedArrayBuffer TS incompatibility)
   const arrayBuffer = audioBuffer.buffer.slice(

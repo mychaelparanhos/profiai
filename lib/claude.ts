@@ -1,8 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompts';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 export interface LessonOutputs {
   summary: string;
   quiz: QuizItem[];
@@ -24,6 +22,7 @@ export async function generateLessonOutputs(
   classroomName: string,
   durationMin: number
 ): Promise<LessonOutputs> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const date = new Date().toLocaleDateString('pt-BR');
   const userPrompt = buildUserPrompt(
     transcription,

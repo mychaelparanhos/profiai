@@ -80,10 +80,15 @@ export default function AudioRecorder({ onRecorded }: AudioRecorderProps) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
       } catch (err) {
+        const name = err instanceof DOMException ? err.name : 'Unknown';
         const msg =
-          err instanceof DOMException && err.name === 'NotAllowedError'
-            ? 'Permissão de microfone negada. Habilite o acesso ao microfone nas configurações do navegador e tente novamente.'
-            : 'Não foi possível acessar o microfone. Verifique seu dispositivo.';
+          name === 'NotAllowedError'
+            ? 'Permissão negada. Habilite o microfone nas configurações do navegador.'
+            : name === 'NotFoundError'
+            ? 'Nenhum microfone encontrado. Verifique se há um microfone conectado.'
+            : name === 'NotReadableError'
+            ? 'Microfone em uso por outro aplicativo. Feche outros apps e tente novamente.'
+            : `Erro ao acessar microfone (${name}). Recarregue a página e tente novamente.`;
         setErrorMsg(msg);
         setRecorderState('error');
       }
@@ -135,10 +140,15 @@ export default function AudioRecorder({ onRecorded }: AudioRecorderProps) {
       setElapsed(0);
       startTimer();
     } catch (err) {
+      const name = err instanceof DOMException ? err.name : 'Unknown';
       const msg =
-        err instanceof DOMException && err.name === 'NotAllowedError'
-          ? 'Permissão de microfone negada. Habilite o acesso ao microfone nas configurações do navegador e tente novamente.'
-          : 'Não foi possível acessar o microfone. Verifique seu dispositivo.';
+        name === 'NotAllowedError'
+          ? 'Permissão negada. Habilite o microfone nas configurações do navegador.'
+          : name === 'NotFoundError'
+          ? 'Nenhum microfone encontrado. Verifique se há um microfone conectado.'
+          : name === 'NotReadableError'
+          ? 'Microfone em uso por outro aplicativo. Feche outros apps e tente novamente.'
+          : `Erro ao acessar microfone (${name}). Recarregue a página e tente novamente.`;
       setErrorMsg(msg);
       setRecorderState('error');
     }

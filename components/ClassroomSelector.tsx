@@ -24,7 +24,7 @@ export default function ClassroomSelector({ classrooms, onSelect, value }: Class
         Selecione uma turma
       </option>
       {classrooms.map((c) => (
-        <option key={c.id} value={c.google_classroom_id}>
+        <option key={c.id} value={c.id}>
           {c.name}{c.section ? ` — ${c.section}` : ''}
         </option>
       ))}

@@ -73,6 +73,24 @@ export default function AudioRecorder({ onRecorded }: AudioRecorderProps) {
     }, 1000);
   }, [handleAutoStop]);
 
+  // Request microphone permission on mount so the browser prompts immediately
+  useEffect(() => {
+    async function requestMicPermission() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      } catch (err) {
+        const msg =
+          err instanceof DOMException && err.name === 'NotAllowedError'
+            ? 'Permissão de microfone negada. Habilite o acesso ao microfone nas configurações do navegador e tente novamente.'
+            : 'Não foi possível acessar o microfone. Verifique seu dispositivo.';
+        setErrorMsg(msg);
+        setRecorderState('error');
+      }
+    }
+    requestMicPermission();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -87,8 +105,12 @@ export default function AudioRecorder({ onRecorded }: AudioRecorderProps) {
     setRecorderState('requesting');
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      // Reuse stream already obtained on mount; request again if it was stopped
+      if (!streamRef.current || !streamRef.current.active) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      }
+      const stream = streamRef.current!;
 
       const mimeType = getSupportedMimeType();
       mimeTypeRef.current = mimeType;

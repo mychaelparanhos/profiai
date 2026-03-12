@@ -1,0 +1,156 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+import { auth } from '@/auth';
+import { createServerSupabaseClient } from '@/lib/supabase';
+import { transcribeAudio } from '@/lib/whisper';
+import { extractSlidesText } from '@/lib/slides';
+import { generateLessonOutputs } from '@/lib/claude';
+import { NextRequest, NextResponse } from 'next/server';
+
+async function downloadFromStorage(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  bucket: string,
+  path: string
+): Promise<Buffer> {
+  const { data, error } = await supabase.storage.from(bucket).download(path);
+  if (error || !data) throw new Error(`Storage download failed: ${error?.message}`);
+  return Buffer.from(await data.arrayBuffer());
+}
+
+export async function POST(
+  _request: NextRequest,
+  { params }: { params: Promise<{ lessonId: string }> }
+) {
+  const { lessonId } = await params;
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const supabase = createServerSupabaseClient();
+
+  // Resolve user
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', session.user?.email ?? '')
+    .single();
+
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  // Fetch lesson
+  const { data: lesson, error: lessonError } = await supabase
+    .from('lessons')
+    .select('id, user_id, classroom_id, title, audio_url, slides_url, duration_secs, status')
+    .eq('id', lessonId)
+    .eq('user_id', dbUser.id)
+    .single();
+
+  if (lessonError || !lesson) {
+    return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+  }
+
+  if (!lesson.audio_url) {
+    return NextResponse.json({ error: 'Áudio ainda não enviado' }, { status: 400 });
+  }
+
+  // Check credits
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('credits_total, credits_used')
+    .eq('user_id', dbUser.id)
+    .single();
+
+  if (!subscription || subscription.credits_used >= subscription.credits_total) {
+    return NextResponse.json({ error: 'INSUFFICIENT_CREDITS' }, { status: 402 });
+  }
+
+  // Fetch classroom name
+  const { data: classroom } = await supabase
+    .from('classrooms')
+    .select('name')
+    .eq('id', lesson.classroom_id)
+    .single();
+
+  const classroomName = classroom?.name ?? 'Aula';
+  const durationMin = Math.ceil((lesson.duration_secs ?? 60) / 60);
+
+  const setStatus = async (status: string, errorMessage?: string) => {
+    await supabase
+      .from('lessons')
+      .update({ status, ...(errorMessage ? { error_message: errorMessage } : {}) })
+      .eq('id', lessonId);
+  };
+
+  try {
+    // ── Step 1: Transcribe audio ──────────────────────────────────────
+    await setStatus('transcribing');
+
+    // Extract storage path from URL
+    const audioUrl = new URL(lesson.audio_url);
+    const audioPathMatch = audioUrl.pathname.match(/audio-temp\/(.+)$/);
+    if (!audioPathMatch) throw new Error('Invalid audio URL format');
+
+    const audioBuffer = await downloadFromStorage(supabase, 'audio-temp', audioPathMatch[1]);
+    const mimeType = lesson.audio_url.includes('.mp4') ? 'audio/mp4' : 'audio/webm';
+    const transcription = await transcribeAudio(audioBuffer, mimeType);
+
+    // ── Step 2: Extract slides text ───────────────────────────────────
+    await setStatus('processing');
+
+    let slidesText = '';
+    if (lesson.slides_url) {
+      const slidesUrl = new URL(lesson.slides_url);
+      const slidesPathMatch = slidesUrl.pathname.match(/slides\/(.+)$/);
+      if (slidesPathMatch) {
+        const slidesBuffer = await downloadFromStorage(supabase, 'slides', slidesPathMatch[1]);
+        const slidesMime = lesson.slides_url.includes('.pdf')
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        slidesText = await extractSlidesText(slidesBuffer, slidesMime);
+      }
+    }
+
+    // ── Step 3: Generate outputs with Claude ──────────────────────────
+    const outputs = await generateLessonOutputs(
+      transcription,
+      slidesText,
+      classroomName,
+      durationMin
+    );
+
+    // ── Step 4: Save outputs ──────────────────────────────────────────
+    const { error: upsertError } = await supabase.from('lesson_outputs').upsert(
+      {
+        lesson_id: lessonId,
+        transcription,
+        summary: outputs.summary,
+        quiz: outputs.quiz,
+        references: outputs.references,
+        transcription_summary: outputs.transcription_summary,
+        next_class_suggestions: outputs.next_class_suggestions,
+      },
+      { onConflict: 'lesson_id' }
+    );
+
+    if (upsertError) throw new Error(`Failed to save outputs: ${upsertError.message}`);
+
+    // ── Step 5: Decrement credit ──────────────────────────────────────
+    await supabase
+      .from('subscriptions')
+      .update({ credits_used: subscription.credits_used + 1 })
+      .eq('user_id', dbUser.id);
+
+    // ── Step 6: Mark ready ────────────────────────────────────────────
+    await setStatus('ready');
+
+    return NextResponse.json({ lessonId, status: 'ready' });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erro desconhecido no pipeline';
+    await setStatus('error', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

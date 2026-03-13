@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
           return new Uint8Array(await data.arrayBuffer());
         })
       );
-      const chunkBuffers = results.filter((b): b is Uint8Array => b !== null);
+      const chunkBuffers = results.filter((b) => b !== null) as Uint8Array<ArrayBuffer>[];
 
       if (chunkBuffers.length === 0) {
         await supabase.from('lessons').update({ status: 'error', error_message: 'Nenhum chunk encontrado' }).eq('id', lessonId);

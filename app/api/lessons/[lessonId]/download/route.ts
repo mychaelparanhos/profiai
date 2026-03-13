@@ -33,7 +33,7 @@ export async function GET(
 
   const filename = `${lesson.title.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_')}.docx`;
 
-  return new NextResponse(docxBuffer, {
+  return new NextResponse(docxBuffer as unknown as BodyInit, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename="${filename}"`,

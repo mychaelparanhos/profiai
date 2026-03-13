@@ -39,8 +39,11 @@ export async function generateLessonOutputs(
     messages: [{ role: 'user', content: userPrompt }],
   });
 
-  const text =
+  const raw =
     response.content[0].type === 'text' ? response.content[0].text : '';
+
+  // Strip markdown code block if Claude wrapped the JSON
+  const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 
   const parsed = JSON.parse(text) as LessonOutputs;
 

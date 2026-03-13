@@ -1,6 +1,32 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { JWT } from 'next-auth/jwt';
+
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        grant_type: 'refresh_token',
+        refresh_token: token.refreshToken as string,
+      }),
+    });
+    const data = await res.json() as { access_token?: string; expires_in?: number; error?: string };
+    if (!res.ok || data.error) throw new Error(data.error ?? 'refresh failed');
+    return {
+      ...token,
+      accessToken: data.access_token,
+      accessTokenExpires: Date.now() + (data.expires_in ?? 3600) * 1000,
+    };
+  } catch (err) {
+    console.error('[ProfIA] Token refresh error:', err);
+    return { ...token, error: 'RefreshAccessTokenError' };
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -28,9 +54,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at
+          ? account.expires_at * 1000
+          : Date.now() + 3600 * 1000;
         token.googleId = account.providerAccountId;
+        return token;
       }
-      return token;
+      // Token still valid — return as-is
+      if (Date.now() < (token.accessTokenExpires as number)) {
+        return token;
+      }
+      // Token expired — refresh
+      console.log('[ProfIA] jwt: access token expired, refreshing...');
+      return refreshAccessToken(token);
     },
     async session({ session, token }) {
       console.log('[ProfIA] session callback — user:', session?.user?.email);

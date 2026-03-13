@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AudioRecorder from '@/components/AudioRecorder';
@@ -19,10 +19,40 @@ export default function GravarAulaPage() {
   const [pageState, setPageState] = useState<PageState>('recording');
   const [error, setError] = useState<string | null>(null);
   const [slidesFilename, setSlidesFilename] = useState<string | null>(null);
+  const [processingReady, setProcessingReady] = useState(false);
+  const [checkingReady, setCheckingReady] = useState(false);
 
   function handleReady(_audioUrl: string) {
     setPageState('done');
   }
+
+  // Polling: verifica se o servidor terminou de montar o arquivo antes de processar
+  const handleProcessar = useCallback(async () => {
+    setCheckingReady(true);
+    try {
+      // Tenta até 60s (poll a cada 3s)
+      for (let i = 0; i < 20; i++) {
+        const res = await fetch(`/api/lessons/${lessonId}/status`);
+        if (res.ok) {
+          const { status } = await res.json() as { status: string };
+          if (status === 'pending' || status === 'processing' || status === 'ready') {
+            router.push(`/aula/${lessonId}/processar`);
+            return;
+          }
+          if (status === 'error') {
+            setError('Erro ao preparar o áudio. Tente novamente.');
+            setCheckingReady(false);
+            return;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      // Timeout — deixa prosseguir mesmo assim
+      router.push(`/aula/${lessonId}/processar`);
+    } catch {
+      router.push(`/aula/${lessonId}/processar`);
+    }
+  }, [lessonId, router]);
 
   // Step indicator
   const slidesStepLabel =
@@ -114,18 +144,16 @@ export default function GravarAulaPage() {
                 <p className="text-2xl mb-2">✓</p>
                 <p className="text-green-800 font-medium">Áudio enviado com sucesso!</p>
                 <p className="text-sm text-green-600 mt-1">
-                  {slidesMode === 'nao'
-                    ? 'Áudio pronto. Clique abaixo para processar com IA.'
-                    : slidesFilename
-                    ? 'Slides e áudio prontos. Clique abaixo para processar com IA.'
-                    : 'Áudio pronto. Você pode adicionar slides acima ou processar só com o áudio.'}
+                  O arquivo final está sendo montado nos bastidores. Você pode fechar o computador agora — quando voltar, clique em Processar com IA.
                 </p>
               </div>
+              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
               <button
-                onClick={() => router.push(`/aula/${lessonId}/processar`)}
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                onClick={handleProcessar}
+                disabled={checkingReady}
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Processar com IA →
+                {checkingReady ? 'Verificando se está pronto...' : 'Processar com IA →'}
               </button>
             </div>
           )}

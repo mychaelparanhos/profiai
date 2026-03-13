@@ -100,9 +100,9 @@ export default function AudioRecorder({ lessonId, onReady }: AudioRecorderProps)
         const data = await res.json() as { error?: string };
         throw new Error(data.error ?? 'Erro ao finalizar');
       }
-      const data = await res.json() as { audioUrl: string };
+      // Finalize retorna imediatamente — concatenação acontece em background no servidor
       setRecorderState('done');
-      onReady(data.audioUrl);
+      onReady('');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erro ao finalizar');
       setRecorderState('error');
@@ -165,7 +165,7 @@ export default function AudioRecorder({ lessonId, onReady }: AudioRecorderProps)
         {recorderState === 'recording' && 'Gravando...'}
         {recorderState === 'paused' && 'Gravação pausada'}
         {recorderState === 'stopped' && 'Encerrando gravação...'}
-        {recorderState === 'finalizing' && 'Montando arquivo final...'}
+        {recorderState === 'finalizing' && 'Enviando para o servidor...'}
         {recorderState === 'done' && 'Áudio salvo com sucesso!'}
         {recorderState === 'error' && 'Erro na gravação'}
       </p>

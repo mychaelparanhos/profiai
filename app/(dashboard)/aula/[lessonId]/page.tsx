@@ -4,7 +4,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import ProcessingStatus from '@/components/ProcessingStatus';
 import LessonOutput from '@/components/LessonOutput';
-import type { LessonOutput as LessonOutputType, LessonStatus } from '@/types';
+import AddLinkModal from '@/components/AddLinkModal';
+import type { LessonOutput as LessonOutputType, LessonStatus, LessonLink } from '@/types';
 
 interface LessonData {
   id: string;
@@ -12,6 +13,7 @@ interface LessonData {
   status: LessonStatus;
   error_message: string | null;
   outputs: LessonOutputType | null;
+  links?: LessonLink[];
 }
 
 export default function LessonPage() {
@@ -23,6 +25,8 @@ export default function LessonPage() {
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
   const [publishUrl, setPublishUrl] = useState<string | undefined>();
+  const [links, setLinks] = useState<LessonLink[]>([]);
+  const [showAddLink, setShowAddLink] = useState(false);
 
   const refreshLesson = useCallback(async () => {
     const res = await fetch(`/api/lessons/${lessonId}/data`);
@@ -33,6 +37,7 @@ export default function LessonPage() {
     }
     const data = (await res.json()) as LessonData;
     setLesson(data);
+    setLinks(data.links ?? []);
     if (data.outputs?.google_post_id) {
       setPublished(true);
     }
@@ -126,10 +131,19 @@ export default function LessonPage() {
             <LessonOutput
               lessonId={lessonId}
               outputs={lesson.outputs}
+              complementaryLinks={links}
+              onAddLink={() => setShowAddLink(true)}
               onPublish={handlePublish}
               published={published}
               publishUrl={publishUrl}
             />
+            {showAddLink && (
+              <AddLinkModal
+                lessonId={lessonId}
+                onClose={() => setShowAddLink(false)}
+                onAdded={() => void refreshLesson()}
+              />
+            )}
           ) : (
             <p className="text-gray-500 text-sm">Outputs não disponíveis.</p>
           )}

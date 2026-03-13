@@ -45,5 +45,13 @@ export async function GET(
     outputs = data;
   }
 
-  return NextResponse.json({ ...lesson, outputs });
+  // Links complementares (professor-curados)
+  const { data: links } = await supabase
+    .from('lesson_links')
+    .select('*')
+    .eq('lesson_id', lessonId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  return NextResponse.json({ ...lesson, outputs, links: links ?? [] });
 }

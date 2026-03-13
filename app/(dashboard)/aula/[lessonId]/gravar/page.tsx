@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AudioRecorder from '@/components/AudioRecorder';
 
-type PageState = 'recording' | 'uploading' | 'done' | 'error';
+type PageState = 'recording' | 'done' | 'error';
 
 export default function GravarAulaPage() {
   const params = useParams();
@@ -14,31 +14,8 @@ export default function GravarAulaPage() {
   const [pageState, setPageState] = useState<PageState>('recording');
   const [error, setError] = useState<string | null>(null);
 
-  async function handleRecorded(blob: Blob, mimeType: string) {
-    setPageState('uploading');
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-      formData.append('audio', blob, `audio.${ext}`);
-      formData.append('lessonId', lessonId);
-
-      const res = await fetch('/api/audio/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? 'Erro ao enviar áudio');
-      }
-
-      setPageState('done');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      setPageState('error');
-    }
+  function handleReady(_audioUrl: string) {
+    setPageState('done');
   }
 
   return (
@@ -55,7 +32,7 @@ export default function GravarAulaPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-sm p-8 space-y-6">
-          {/* Step indicators */}
+          {/* Steps */}
           <div className="flex items-center gap-2 text-sm">
             <span className="flex items-center gap-1.5 text-green-600 font-medium">
               <span className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center text-xs">✓</span>
@@ -72,19 +49,11 @@ export default function GravarAulaPage() {
 
           <h2 className="text-xl font-bold text-gray-800">Grave a explicação da aula</h2>
           <p className="text-sm text-gray-500">
-            Explique o conteúdo dos slides em voz alta. O áudio será transcrito e combinado com seus slides para gerar o material didático.
+            Explique o conteúdo dos slides em voz alta. O áudio é salvo automaticamente em partes — você pode fechar o computador após parar a gravação.
           </p>
 
-          {/* Audio recorder */}
           {pageState === 'recording' && (
-            <AudioRecorder onRecorded={handleRecorded} />
-          )}
-
-          {pageState === 'uploading' && (
-            <div className="border border-gray-200 rounded-xl p-8 text-center space-y-3">
-              <div className="animate-spin w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto" />
-              <p className="text-sm text-gray-600">Enviando áudio...</p>
-            </div>
+            <AudioRecorder lessonId={lessonId} onReady={handleReady} />
           )}
 
           {pageState === 'done' && (
@@ -93,10 +62,9 @@ export default function GravarAulaPage() {
                 <p className="text-2xl mb-2">✓</p>
                 <p className="text-green-800 font-medium">Áudio enviado com sucesso!</p>
                 <p className="text-sm text-green-600 mt-1">
-                  Seus slides e áudio estão prontos para processamento com IA.
+                  Seus slides e áudio estão prontos. Clique abaixo para processar com IA.
                 </p>
               </div>
-
               <button
                 onClick={() => router.push(`/aula/${lessonId}/processar`)}
                 className="w-full bg-indigo-600 text-white py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"

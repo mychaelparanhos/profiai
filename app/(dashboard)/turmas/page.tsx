@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import SyncButton from './SyncButton';
 
 export default async function TurmasPage() {
@@ -25,7 +26,10 @@ export default async function TurmasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+            ← Dashboard
+          </Link>
           <h1 className="text-2xl font-bold text-indigo-600">Minhas Turmas</h1>
         </div>
       </header>

@@ -8,6 +8,7 @@ import { transcribeAudio } from '@/lib/whisper';
 import { extractSlidesText } from '@/lib/slides';
 import { generateLessonOutputs } from '@/lib/claude';
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 
 async function downloadFromStorage(
   supabase: ReturnType<typeof createServerSupabaseClient>,
@@ -86,7 +87,38 @@ export async function POST(
       .eq('id', lessonId);
   };
 
-  console.log('[pipeline] START lessonId:', lessonId, '| OPENAI_KEY set:', !!process.env.OPENAI_API_KEY, '| ANTHROPIC_KEY set:', !!process.env.ANTHROPIC_API_KEY);
+  // Dispara pipeline em background — retorna imediatamente para o professor
+  after(async () => {
+    await runPipeline({
+      supabase,
+      lessonId,
+      lesson,
+      dbUserId: dbUser.id,
+      classroomName,
+      durationMin,
+      creditsUsed: subscription.credits_used,
+      setStatus,
+    });
+  });
+
+  return NextResponse.json({ lessonId, status: 'processing', message: 'Processamento iniciado em background' });
+}
+
+interface PipelineArgs {
+  supabase: ReturnType<typeof createServerSupabaseClient>;
+  lessonId: string;
+  lesson: { id: string; audio_url: string | null; slides_url: string | null; duration_secs: number | null; classroom_id: string };
+  dbUserId: string;
+  classroomName: string;
+  durationMin: number;
+  creditsUsed: number;
+  setStatus: (status: string, errorMessage?: string) => Promise<void>;
+}
+
+async function runPipeline({
+  supabase, lessonId, lesson, dbUserId, classroomName, durationMin, creditsUsed, setStatus,
+}: PipelineArgs) {
+  console.log('[pipeline] START lessonId:', lessonId, '| GROQ_KEY set:', !!process.env.GROQ_API_KEY, '| ANTHROPIC_KEY set:', !!process.env.ANTHROPIC_API_KEY);
 
   try {
     // ── Step 1: Transcribe audio (or reuse cached transcription) ──────
@@ -170,17 +202,15 @@ export async function POST(
     // ── Step 5: Decrement credit ──────────────────────────────────────
     await supabase
       .from('subscriptions')
-      .update({ credits_used: subscription.credits_used + 1 })
-      .eq('user_id', dbUser.id);
+      .update({ credits_used: creditsUsed + 1 })
+      .eq('user_id', dbUserId);
 
     // ── Step 6: Mark ready ────────────────────────────────────────────
     await setStatus('ready');
-
-    return NextResponse.json({ lessonId, status: 'ready' });
+    console.log('[pipeline] DONE lessonId:', lessonId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro desconhecido no pipeline';
     console.error('[pipeline] ERROR:', msg, err);
     await setStatus('error', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

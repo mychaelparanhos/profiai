@@ -62,12 +62,26 @@ export interface LessonOutput {
   id: string;
   lesson_id: string;
   transcription: string | null;
+  transcription_summary: string | null;
   summary: string | null;
   quiz: QuizQuestion[] | null;
   references: string | null;
   next_class_suggestions: string | null;
   google_post_id: string | null;
   published_at: string | null;
+}
+
+export interface LessonLink {
+  id: string;
+  lesson_id: string;
+  created_by: string;
+  title: string;
+  url: string | null;
+  file_url: string | null;
+  description: string | null;
+  type: 'url' | 'file';
+  sort_order: number;
+  created_at: string;
 }
 
 export interface TeachingPlan {

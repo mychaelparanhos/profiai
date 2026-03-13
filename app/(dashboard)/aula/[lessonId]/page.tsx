@@ -128,22 +128,24 @@ export default function LessonPage() {
               onError={(msg) => setError(msg)}
             />
           ) : lesson.outputs ? (
-            <LessonOutput
-              lessonId={lessonId}
-              outputs={lesson.outputs}
-              complementaryLinks={links}
-              onAddLink={() => setShowAddLink(true)}
-              onPublish={handlePublish}
-              published={published}
-              publishUrl={publishUrl}
-            />
-            {showAddLink && (
-              <AddLinkModal
+            <>
+              <LessonOutput
                 lessonId={lessonId}
-                onClose={() => setShowAddLink(false)}
-                onAdded={() => void refreshLesson()}
+                outputs={lesson.outputs}
+                complementaryLinks={links}
+                onAddLink={() => setShowAddLink(true)}
+                onPublish={handlePublish}
+                published={published}
+                publishUrl={publishUrl}
               />
-            )}
+              {showAddLink && (
+                <AddLinkModal
+                  lessonId={lessonId}
+                  onClose={() => setShowAddLink(false)}
+                  onAdded={() => void refreshLesson()}
+                />
+              )}
+            </>
           ) : (
             <p className="text-gray-500 text-sm">Outputs não disponíveis.</p>
           )}

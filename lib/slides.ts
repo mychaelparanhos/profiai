@@ -1,9 +1,5 @@
 import AdmZip from 'adm-zip';
 
-// pdf-parse ships CJS without a proper ESM default export
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
-
 /**
  * Extract plain text from PPTX by reading slide XML files.
  * PPTX = ZIP archive; text lives in <a:t> elements in ppt/slides/slide*.xml
@@ -33,6 +29,9 @@ export async function extractSlidesText(
   mimeType: string
 ): Promise<string> {
   if (mimeType === 'application/pdf') {
+    // Dynamic import avoids pdf-parse running test file I/O at module load time
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
     const data = await pdfParse(buffer);
     return data.text;
   }

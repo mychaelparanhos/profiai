@@ -36,18 +36,19 @@ export async function POST(request: NextRequest) {
 
   const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
 
-  // Baixar e concatenar chunks em ordem
-  const chunkBuffers: Uint8Array[] = [];
-  for (let i = 0; i < totalChunks; i++) {
-    const chunkPath = `${dbUser.id}/${lessonId}/chunks/chunk_${i}.${ext}`;
-    const { data, error } = await supabase.storage.from('audio-temp').download(chunkPath);
-    if (error || !data) {
-      console.warn(`[finalize] chunk ${i} não encontrado, pulando`);
-      continue;
-    }
-    const buf = new Uint8Array(await data.arrayBuffer());
-    chunkBuffers.push(buf);
-  }
+  // Baixar todos os chunks em paralelo (mantém ordem)
+  const results = await Promise.all(
+    Array.from({ length: totalChunks }, async (_, i) => {
+      const chunkPath = `${dbUser.id}/${lessonId}/chunks/chunk_${i}.${ext}`;
+      const { data, error } = await supabase.storage.from('audio-temp').download(chunkPath);
+      if (error || !data) {
+        console.warn(`[finalize] chunk ${i} não encontrado, pulando`);
+        return null;
+      }
+      return new Uint8Array(await data.arrayBuffer());
+    })
+  );
+  const chunkBuffers = results.filter((b): b is Uint8Array => b !== null);
 
   if (chunkBuffers.length === 0) {
     return NextResponse.json({ error: 'Nenhum chunk encontrado' }, { status: 422 });

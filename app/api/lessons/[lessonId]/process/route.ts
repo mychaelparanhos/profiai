@@ -1,5 +1,6 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes — requires Vercel Pro plan
 
 import { auth } from '@/auth';
 import { createServerSupabaseClient } from '@/lib/supabase';

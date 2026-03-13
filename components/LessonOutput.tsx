@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { LessonOutput, QuizQuestion } from '@/types';
 
 interface LessonOutputProps {
+  lessonId: string;
   outputs: LessonOutput;
   onPublish: () => Promise<void>;
   published: boolean;
@@ -53,6 +54,7 @@ function QuizCard({ item, index }: { item: QuizQuestion; index: number }) {
 }
 
 export default function LessonOutput({
+  lessonId,
   outputs,
   onPublish,
   published,
@@ -60,7 +62,27 @@ export default function LessonOutput({
 }: LessonOutputProps) {
   const [activeTab, setActiveTab] = useState<Tab>('resumo');
   const [publishing, setPublishing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/download`);
+      if (!res.ok) throw new Error('Falha ao gerar documento');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] ?? 'aula.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao baixar documento');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function handlePublish() {
     setPublishing(true);
@@ -126,8 +148,20 @@ export default function LessonOutput({
         )}
       </div>
 
-      {/* Publish section */}
-      <div className="border-t border-gray-100 pt-5">
+      {/* Actions */}
+      <div className="border-t border-gray-100 pt-5 space-y-3">
+        {/* Download button */}
+        <div>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+          >
+            {downloading ? 'Gerando documento...' : '⬇ Baixar documento (.docx)'}
+          </button>
+        </div>
+
+        {/* Publish section */}
         {published ? (
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-medium px-3 py-1.5 rounded-full">

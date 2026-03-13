@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@supabase/supabase-js": "^2.99.0",
     "adm-zip": "^0.5.16",
+    "docx": "^9.6.1",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
     "openai": "^6.27.0",

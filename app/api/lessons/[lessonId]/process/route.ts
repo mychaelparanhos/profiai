@@ -107,14 +107,18 @@ export async function POST(
 
     let slidesText = '';
     if (lesson.slides_url) {
-      const slidesUrl = new URL(lesson.slides_url);
-      const slidesPathMatch = slidesUrl.pathname.match(/slides\/(.+)$/);
-      if (slidesPathMatch) {
-        const slidesBuffer = await downloadFromStorage(supabase, 'slides', slidesPathMatch[1]);
-        const slidesMime = lesson.slides_url.includes('.pdf')
-          ? 'application/pdf'
-          : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-        slidesText = await extractSlidesText(slidesBuffer, slidesMime);
+      try {
+        const slidesUrl = new URL(lesson.slides_url);
+        const slidesPathMatch = slidesUrl.pathname.match(/slides\/(.+)$/);
+        if (slidesPathMatch) {
+          const slidesBuffer = await downloadFromStorage(supabase, 'slides', slidesPathMatch[1]);
+          const slidesMime = lesson.slides_url.includes('.pdf')
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+          slidesText = await extractSlidesText(slidesBuffer, slidesMime);
+        }
+      } catch (slidesErr) {
+        console.warn('[pipeline] slides extraction failed (continuing without):', slidesErr);
       }
     }
 

@@ -124,6 +124,7 @@ export default function LessonPage() {
             />
           ) : lesson.outputs ? (
             <LessonOutput
+              lessonId={lessonId}
               outputs={lesson.outputs}
               onPublish={handlePublish}
               published={published}

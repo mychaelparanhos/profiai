@@ -29,11 +29,10 @@ export async function extractSlidesText(
   mimeType: string
 ): Promise<string> {
   if (mimeType === 'application/pdf') {
-    // Dynamic import avoids pdf-parse running test file I/O at module load time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
-    const data = await pdfParse(buffer);
-    return data.text;
+    // unpdf is serverless-compatible (no browser API dependencies)
+    const { extractText } = await import('unpdf');
+    const result = await extractText(new Uint8Array(buffer), { mergePages: true });
+    return result.text;
   }
 
   return extractPptxText(buffer);

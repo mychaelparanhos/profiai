@@ -145,12 +145,12 @@ async function runPipeline({
       transcription = cachedTranscription!;
     } else {
       console.log('[pipeline] step 1: transcribing audio via Whisper');
-      const audioUrl = new URL(lesson.audio_url);
+      const audioUrl = new URL(lesson.audio_url!);
       const audioPathMatch = audioUrl.pathname.match(/audio-temp\/(.+)$/);
       if (!audioPathMatch) throw new Error('Invalid audio URL format');
 
       const audioBuffer = await downloadFromStorage(supabase, 'audio-temp', audioPathMatch[1]);
-      const mimeType = lesson.audio_url.includes('.mp4') ? 'audio/mp4' : 'audio/webm';
+      const mimeType = lesson.audio_url!.includes('.mp4') ? 'audio/mp4' : 'audio/webm';
       transcription = await transcribeAudio(audioBuffer, mimeType);
     }
 

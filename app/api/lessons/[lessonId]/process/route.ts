@@ -89,18 +89,38 @@ export async function POST(
   console.log('[pipeline] START lessonId:', lessonId, '| OPENAI_KEY set:', !!process.env.OPENAI_API_KEY, '| ANTHROPIC_KEY set:', !!process.env.ANTHROPIC_API_KEY);
 
   try {
-    // ── Step 1: Transcribe audio ──────────────────────────────────────
-    console.log('[pipeline] step 1: transcribing audio');
+    // ── Step 1: Transcribe audio (or reuse cached transcription) ──────
     await setStatus('transcribing');
 
-    // Extract storage path from URL
-    const audioUrl = new URL(lesson.audio_url);
-    const audioPathMatch = audioUrl.pathname.match(/audio-temp\/(.+)$/);
-    if (!audioPathMatch) throw new Error('Invalid audio URL format');
+    // Check for existing transcription from the same audio
+    const { data: existingOutput } = await supabase
+      .from('lesson_outputs')
+      .select('transcription, audio_url')
+      .eq('lesson_id', lessonId)
+      .maybeSingle();
 
-    const audioBuffer = await downloadFromStorage(supabase, 'audio-temp', audioPathMatch[1]);
-    const mimeType = lesson.audio_url.includes('.mp4') ? 'audio/mp4' : 'audio/webm';
-    const transcription = await transcribeAudio(audioBuffer, mimeType);
+    const cachedAudioUrl = existingOutput?.audio_url as string | null | undefined;
+    const cachedTranscription = existingOutput?.transcription as string | null | undefined;
+    const canReuseTranscription =
+      cachedTranscription &&
+      cachedAudioUrl &&
+      cachedAudioUrl === lesson.audio_url;
+
+    let transcription: string;
+
+    if (canReuseTranscription) {
+      console.log('[pipeline] step 1: reusing cached transcription (same audio_url)');
+      transcription = cachedTranscription!;
+    } else {
+      console.log('[pipeline] step 1: transcribing audio via Whisper');
+      const audioUrl = new URL(lesson.audio_url);
+      const audioPathMatch = audioUrl.pathname.match(/audio-temp\/(.+)$/);
+      if (!audioPathMatch) throw new Error('Invalid audio URL format');
+
+      const audioBuffer = await downloadFromStorage(supabase, 'audio-temp', audioPathMatch[1]);
+      const mimeType = lesson.audio_url.includes('.mp4') ? 'audio/mp4' : 'audio/webm';
+      transcription = await transcribeAudio(audioBuffer, mimeType);
+    }
 
     // ── Step 2: Extract slides text ───────────────────────────────────
     await setStatus('processing');
@@ -134,6 +154,7 @@ export async function POST(
     const { error: upsertError } = await supabase.from('lesson_outputs').upsert(
       {
         lesson_id: lessonId,
+        audio_url: lesson.audio_url,
         transcription,
         summary: outputs.summary,
         quiz: outputs.quiz,

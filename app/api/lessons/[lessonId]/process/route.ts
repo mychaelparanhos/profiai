@@ -86,8 +86,11 @@ export async function POST(
       .eq('id', lessonId);
   };
 
+  console.log('[pipeline] START lessonId:', lessonId, '| OPENAI_KEY set:', !!process.env.OPENAI_API_KEY, '| ANTHROPIC_KEY set:', !!process.env.ANTHROPIC_API_KEY);
+
   try {
     // ── Step 1: Transcribe audio ──────────────────────────────────────
+    console.log('[pipeline] step 1: transcribing audio');
     await setStatus('transcribing');
 
     // Extract storage path from URL
@@ -151,6 +154,7 @@ export async function POST(
     return NextResponse.json({ lessonId, status: 'ready' });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro desconhecido no pipeline';
+    console.error('[pipeline] ERROR:', msg, err);
     await setStatus('error', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
